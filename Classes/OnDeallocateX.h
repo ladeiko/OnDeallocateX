@@ -27,9 +27,14 @@ typedef void (^OnWillDeallocateBlock)(void);
 @interface NSObject(OnDeallocateX)
 
 // By default callback is called in main queue
-- (void)onWillDeallocate:(OnWillDeallocateBlock)block;
+// Returns key which can be used later in 'removeOnDeallocateForKey'
+- (NSString* _Nonnull)onWillDeallocate:(OnWillDeallocateBlock _Nonnull)block;
 
 // Calls block in specified queue
-- (void)onWillDeallocate:(OnWillDeallocateBlock)block inQueue:(dispatch_queue_t)queue;
+// Returns key which can be used later in 'removeOnDeallocateForKey'
+- (NSString* _Nonnull)onWillDeallocate:(OnWillDeallocateBlock _Nonnull)block inQueue:(dispatch_queue_t _Nonnull )queue;
+
+// Removes realy installed block
+- (void)removeOnDeallocateForKey:(NSString* _Nonnull)key;
 
 @end

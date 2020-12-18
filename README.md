@@ -28,7 +28,7 @@ class TestObject: NSObject {
 }
 
 let t = TestObject()
-t.onWillDeallocate {
+let k = t.onWillDeallocate {
 	// NOTE: Please do not keep strong references to object inside this callback!!!
 	print("will deallocate")
 }
@@ -38,6 +38,10 @@ t.onWillDeallocate {
 // will deallocate
 // deinit
 // ...
+
+
+// Also you can delete observation by:
+t.removeOnDeallocate(forKey: k)
 ```
 
 **NOTE**: ```onWillDeallocate``` will be called before deallocation, but real deallocation can be performed later (in case of additional strong references to object).

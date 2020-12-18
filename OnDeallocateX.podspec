@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
     s.name = "OnDeallocateX"
-    s.version = "1.0.0"
+    s.version = "2.0.0"
     s.summary = "Code to track iOS objects deallocation"
     s.homepage = "https://github.com/ladeiko/OnDeallocateX"
     s.license = { :type => "CUSTOM", :file => "LICENSE" }

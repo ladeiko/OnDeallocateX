@@ -19,8 +19,12 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         
         // Do any additional setup after loading the view, typically from a nib.
+        print(onWillDeallocate {
+            print("will deallocate 1")
+        })
+
         onWillDeallocate {
-            print("will deallocate")
+            print("will deallocate 2")
         }
     }
 
