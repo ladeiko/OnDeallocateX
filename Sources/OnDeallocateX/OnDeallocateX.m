@@ -20,7 +20,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#if SWIFT_PACKAGE
 #import "OnDeallocateX.h"
+#else
+#import <OnDeallocateX/OnDeallocateX.h>
+#endif
+
 #import <objc/runtime.h>
 #import <objc/message.h>
 
