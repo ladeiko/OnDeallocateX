@@ -20,11 +20,12 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "OnDeallocateX", // 2
-            // cSettings: [
-            //     .headerSearchPath("Private") // 3
-            // ]
+            name: "OnDeallocateX",
             publicHeadersPath: "./"
+        ),
+        .testTarget(
+            name: "OnDeallocateXTests",
+            dependencies: ["OnDeallocateX"]
         ),
     ]
 )

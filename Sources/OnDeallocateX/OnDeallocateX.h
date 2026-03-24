@@ -23,6 +23,8 @@
 #import <Foundation/Foundation.h>
 
 typedef void (^OnWillDeallocateBlock)(void);
+typedef void (^OnWillDeallocateBlockAsyncCompletion)(void);
+typedef void (^OnWillDeallocateBlockAsync)(OnWillDeallocateBlockAsyncCompletion _Nonnull);
 
 @interface NSObject(OnDeallocateX)
 
@@ -33,6 +35,9 @@ typedef void (^OnWillDeallocateBlock)(void);
 // Calls block in specified queue
 // Returns key which can be used later in 'removeOnDeallocateForKey'
 - (NSString* _Nonnull)onWillDeallocate:(OnWillDeallocateBlock _Nonnull)block inQueue:(dispatch_queue_t _Nonnull )queue;
+
+- (NSString* _Nonnull)onWillDeallocateAsync:(OnWillDeallocateBlockAsync _Nonnull)block;
+- (NSString* _Nonnull)onWillDeallocateAsync:(OnWillDeallocateBlockAsync _Nonnull)block inQueue:(dispatch_queue_t _Nonnull )queue;
 
 // Removes realy installed block
 - (void)removeOnDeallocateForKey:(NSString* _Nonnull)key;

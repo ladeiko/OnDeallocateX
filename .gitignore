@@ -1,1 +1,4 @@
 .swiftpm
+.build
+Sources/OnDeallocateX/.DS_Store
+.DS_Store

@@ -32,9 +32,8 @@
 __attribute__((visibility("hidden"))) static SEL retainCountSelector;
 __attribute__((visibility("hidden"))) static const char setupKey;
 __attribute__((visibility("hidden"))) static const char blocksKey;
+__attribute__((visibility("hidden"))) static const char asyncBlocksKey;
 __attribute__((visibility("hidden"))) static const char selfReferenceKey;
-
-typedef void (^__OnDeallocate__)(void);
 
 @implementation NSObject(OnDeallocateX)
 
@@ -78,25 +77,66 @@ typedef void (^__OnDeallocate__)(void);
     const NSUInteger r = rc(self, retainCountSelector);
     if (r == 2 /* will become 1, because 1 is take with self reference in selfReferenceKey */) {
 
-        // Here it is safe to access vars without sync
-        NSDictionary* const blocks = objc_getAssociatedObject(self, &blocksKey);
-        objc_setAssociatedObject(self, &blocksKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        if (objc_getAssociatedObject(self, &selfReferenceKey)) {
 
-        if (blocks) {
+            // Here it is safe to access vars without sync
+            NSDictionary* const blocks = objc_getAssociatedObject(self, &blocksKey);
+            objc_setAssociatedObject(self, &blocksKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+            NSDictionary* const asyncBlocks = objc_getAssociatedObject(self, &asyncBlocksKey);
+            objc_setAssociatedObject(self, &asyncBlocksKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+            for (NSDictionary* k in asyncBlocks.allValues) {
+                const OnWillDeallocateBlockAsync onDeallocate = [k objectForKey:@"block"];
+                const dispatch_queue_t queue = [k objectForKey:@"queue"];
+                dispatch_async(queue, ^{
+                    onDeallocate([^{
+                        [self description]; // life prolongation
+                                            //  Here, typically, real deallocation will occur, but only
+                                            //  if code in onDeallocate does not add new references to object
+                    } copy]);
+                });
+            }
+
             for (NSDictionary* k in blocks.allValues) {
-                const __OnDeallocate__ onDeallocate = [k objectForKey:@"block"];
+                const OnWillDeallocateBlock onDeallocate = [k objectForKey:@"block"];
                 const dispatch_queue_t queue = [k objectForKey:@"queue"];
                 dispatch_async(queue, ^{
                     onDeallocate();
                     [self description]; // life prolongation
-                    //  Here, typically, real deallocation will occur, but only
-                    //  if code in onDeallocate does not add new references to object
+                                        //  Here, typically, real deallocation will occur, but only
+                                        //  if code in onDeallocate does not add new references to object
                 });
             }
+
             objc_setAssociatedObject(self, &selfReferenceKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         }
     }
     [self releaseOnDeallocateX];
+}
+
+- (NSString* _Nonnull)onWillDeallocateAsync:(OnWillDeallocateBlockAsync _Nonnull)block inQueue:(dispatch_queue_t _Nonnull)queue
+{
+    @synchronized(self)
+    {
+        if (!objc_getAssociatedObject([self class], &setupKey))
+        {
+            objc_setAssociatedObject([self class], &setupKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            [self setupOnDeallocateCodeForClass];
+        }
+
+        NSMutableDictionary * blocks = objc_getAssociatedObject(self, &asyncBlocksKey);
+        if (!blocks) {
+            blocks = [NSMutableDictionary new];
+            objc_setAssociatedObject(self, &asyncBlocksKey, blocks, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(self, &selfReferenceKey, self, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+
+        NSString* key = [[NSUUID UUID] UUIDString];
+        NSDictionary* const info = @{@"block": [block copy], @"queue": queue};
+        [blocks setObject:info forKey:key];
+        return key;
+    }
 }
 
 - (NSString* _Nonnull)onWillDeallocate:(OnWillDeallocateBlock _Nonnull)block inQueue:(dispatch_queue_t _Nonnull)queue
@@ -123,6 +163,11 @@ typedef void (^__OnDeallocate__)(void);
     }
 }
 
+- (NSString* _Nonnull)onWillDeallocateAsync:(OnWillDeallocateBlockAsync _Nonnull)block
+{
+    return [self onWillDeallocateAsync:block inQueue:dispatch_get_main_queue()];
+}
+
 - (NSString* _Nonnull)onWillDeallocate:(OnWillDeallocateBlock _Nonnull)block
 {
     return [self onWillDeallocate:block inQueue:dispatch_get_main_queue()];
@@ -133,10 +178,16 @@ typedef void (^__OnDeallocate__)(void);
         NSMutableDictionary * blocks = objc_getAssociatedObject(self, &blocksKey);
         if (blocks) {
             [blocks removeObjectForKey:key];
-            if ([blocks count]) {
-                objc_setAssociatedObject(self, &blocksKey, nil, OBJC_ASSOCIATION_RETAIN);
-                objc_setAssociatedObject(self, &selfReferenceKey, nil, OBJC_ASSOCIATION_RETAIN);
-            }
+        }
+
+        NSMutableDictionary * asyncBlocks = objc_getAssociatedObject(self, &asyncBlocksKey);
+        if (asyncBlocks) {
+            [asyncBlocks removeObjectForKey:key];
+        }
+
+        if ((blocks == nil || [blocks count] == 0) && (asyncBlocks == nil || [asyncBlocks count] == 0)) {
+            objc_setAssociatedObject(self, &asyncBlocksKey, nil, OBJC_ASSOCIATION_RETAIN);
+            objc_setAssociatedObject(self, &selfReferenceKey, nil, OBJC_ASSOCIATION_RETAIN);
         }
     }
 }
